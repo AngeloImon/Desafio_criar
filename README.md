@@ -1,4 +1,4 @@
-# Desafio Grupo Criar - Chat Local com Llama3
+# Desafio Grupo Criar - Chat Local com Llama3 - [US-EN](https://github.com/AngeloImon/Desafio_criar/blob/main/README.en.md)
 
 Este projeto fornece uma FastAPI integrada ao Llama3 via Ollama (local), com cache em memória, histórico de conversa e medição de desempenho (CPU/GPU/mem). incluí também um pequeno CLI para testes.
 
