@@ -1,12 +1,12 @@
-# Desafio Criar - Chat Local com Llama3
+# Desafio Grupo Criar - Chat Local com Llama3
 
 Este projeto fornece uma FastAPI integrada ao Llama3 via Ollama (local), com cache em memória, histórico de conversa e medição de desempenho (CPU/GPU/mem). incluí também um pequeno CLI para testes.
 
 **Instruções de Instalação**
 
 Requisitos (Software):
-Python (versão testada 3.14).
-Ollama (versão testada 3:8b-instruct).
+- Python (versão testada 3.14).
+- Ollama (versão testada `3:8b-instruct`).
 
 1. Clone o repositório e entre na pasta do projeto.
 2. Crie e ative um ambiente virtual (Windows PowerShell):
@@ -22,7 +22,7 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
-Observação: algumas dependências como pynvml / drivers NVIDIA são opcionais e só são necessárias se quiser métricas de GPU.
+Observação: algumas dependências como `pynvml` / drivers NVIDIA são opcionais e só são necessárias se quiser métricas de GPU.
 
 **Comando para executar o servidor**
 
@@ -39,7 +39,7 @@ Isso expõe a API em `http://127.0.0.1:8000`. A documentação automática do Fa
 Usando `curl`:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/docs#/default/prompt_chat_chat_post \
+curl -X POST http://127.0.0.1:8000/chat \
   -H "Content-Type: application/json" \
   -d '{"mensagem": "Olá, como você está?"}'
 ```
@@ -47,7 +47,7 @@ curl -X POST http://127.0.0.1:8000/docs#/default/prompt_chat_chat_post \
 Usando `http` (HTTPie):
 
 ```bash
-http POST http://127.0.0.1:8000/docs#/default/prompt_chat_chat_post mensagem="Olá, como você está?"
+http POST http://127.0.0.1:8000/chat mensagem="Olá, como você está?"
 ```
 
 Resposta esperada (exemplo):
