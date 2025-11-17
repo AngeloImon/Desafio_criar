@@ -1,4 +1,4 @@
-# Grupo Criar Challenge - Local Chat with Llama3 [PT-BR{(https://github.com/AngeloImon/Desafio_criar/blob/main/README.md)
+# Grupo Criar Challenge - Local Chat with Llama3 [PT-BR](https://github.com/AngeloImon/Desafio_criar/blob/main/README.md)
 
 This project provides a FastAPI application that integrates a Llama3 model via Ollama (local), with in-memory caching, conversation history, and performance measurement (CPU/GPU/memory). A small CLI is also included for quick testing.
 
