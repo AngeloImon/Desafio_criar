@@ -1,6 +1,17 @@
 import time
-import psutil
-import pynvml
+from typing import Optional
+
+# Importar psutil/pynvml de forma defensiva para permitir execução
+# em máquinas sem NVidia / sem as bibliotecas instaladas.
+try:
+    import psutil
+except Exception:
+    psutil = None
+
+try:
+    import pynvml
+except Exception:
+    pynvml = None
 
 
 # Medidor de performance para CPU, GPU e memória
@@ -11,26 +22,39 @@ class MedidorPerformance:
         self.medidas_mem = []
         self.start_time = time.time()
 
-        # Inicializa NVML (biblioteca da NVIDIA)
-        try:
-            pynvml.nvmlInit()
-            self.gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(0)
-        except Exception:
-            self.gpu_handle = None
+        # Inicializa NVML (NVIDIA) apenas se disponível
+        self.gpu_handle: Optional[object] = None
+        if pynvml is not None:
+            try:
+                pynvml.nvmlInit()
+                self.gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+            except Exception:
+                self.gpu_handle = None
 
     # Medir uso atual
     def medir(self):
-        # CPU e memória
-        self.medidas_cpu.append(psutil.cpu_percent(interval=None))
-        self.medidas_mem.append(psutil.virtual_memory().percent)
+        # CPU e memória (se psutil disponível)
+        if psutil is not None:
+            try:
+                self.medidas_cpu.append(psutil.cpu_percent(interval=None))
+                self.medidas_mem.append(psutil.virtual_memory().percent)
+            except Exception:
+                # Em caso de falha na medição, registrar zeros para manter contagem
+                self.medidas_cpu.append(0)
+                self.medidas_mem.append(0)
+        else:
+            # Bibliotecas de medição não disponíveis
+            self.medidas_cpu.append(0)
+            self.medidas_mem.append(0)
 
         # GPU (se houver NVIDIA)
         if self.gpu_handle:
             try:
                 util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
-                self.medidas_gpu.append(util.gpu)
+                self.medidas_gpu.append(getattr(util, "gpu", 0))
             except Exception:
-                pass
+                # Não falhar por causa da GPU
+                self.medidas_gpu.append(0)
 
     # Finalizar e calcular médias
     def finalizar(self):

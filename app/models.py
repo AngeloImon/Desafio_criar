@@ -9,3 +9,4 @@ class ChatPayload(BaseModel):
 # Definir resposta
 class ChatResponse(BaseModel):
     resposta: str
+    metricas: dict | None = None

@@ -1,21 +1,43 @@
-from fastapi import FastAPI, Depends
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Depends, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from app.models import ChatPayload, ChatResponse
-from app.services import gerar_resposta_local
-from app.logger import logger
-from app.state import (
-    adicionar_historico,
-    armazenar_cache,
-    obter_historico,
-    recuperar_cache,
-    limpar_cache,
-    limpar_historico,
-)
 from app.metrics import MedidorPerformance, get_medidor
-import time
+from app.ollama_client import initialize_model, OllamaClientError
+from app.repositories import InMemoryChatRepository, ChatRepository
+from app.usecases.chat_usecase import handle_chat
+from app.logger import logger
 
 # Criar a aplicação FastAPI
 app = FastAPI()
+
+
+# Dependência para repository (in-memory singleton)
+_repo_singleton: InMemoryChatRepository | None = None
+
+
+# Retornar instância singleton do repositório
+def get_repository() -> ChatRepository:
+    global _repo_singleton
+    if _repo_singleton is None:
+        _repo_singleton = InMemoryChatRepository()
+    return _repo_singleton
+
+
+# Manipuladores de erro
+@app.exception_handler(OllamaClientError)
+def handle_ollama_error(request: Request, exc: OllamaClientError):
+    logger.error(f"Erro Ollama: {exc}")
+    return JSONResponse(
+        status_code=502, content={"detail": "Erro ao se comunicar com o modelo local."}
+    )
+
+
+@app.exception_handler(Exception)
+def handle_general_error(request: Request, exc: Exception):
+    logger.exception("Erro interno")
+    return JSONResponse(
+        status_code=500, content={"detail": "Erro interno do servidor."}
+    )
 
 
 # Rota raiz
@@ -34,48 +56,32 @@ def read_root():
 
 
 # Rota para chat
-@app.post("/chat")
-def prompt_chat(
-    payload: ChatPayload, medidor: MedidorPerformance = Depends(get_medidor)
+@app.post("/chat", response_model=ChatResponse)
+async def prompt_chat(
+    payload: ChatPayload,
+    medidor: MedidorPerformance = Depends(get_medidor),
+    repo: ChatRepository = Depends(get_repository),
 ):
     logger.info(f"Prompt: {payload.mensagem}")
 
-    # Cache
-    resposta_cache = recuperar_cache(payload.mensagem)
-    if resposta_cache:
-        logger.info("Resposta obtida do cache:")
-        return {
-            "Resposta": resposta_cache,
-            "Metricas": {"info": "Resposta obtida do cache, sem medir performance"},
-        }
-
-    # Histórico
-    adicionar_historico("user", payload.mensagem)
-    # Medição de performance
-    medidor.medir()
-    # Gerar resposta local
-    resposta_llama3 = gerar_resposta_local(obter_historico())
-
-    # Simular espera pela resposta
-    while not resposta_llama3:
-        time.sleep(0.1)
-        medidor.medir()
-        resposta_llama3 = gerar_resposta_local(obter_historico())
-    # Finalizar medição
-    medidor.medir()
-
-    # Armazenar no histórico e cache
-    adicionar_historico("assistant", resposta_llama3)
-    armazenar_cache(payload.mensagem, resposta_llama3)
-
-    # Log da resposta
-    logger.info(f"Resposta Llama3: {resposta_llama3[:50]}...")
-    return {"Resposta": resposta_llama3, "Métricas": medidor.finalizar()}
+    result = await handle_chat(payload, repo, medidor)
+    # Retornar resposta e métricas
+    return ChatResponse(resposta=result["resposta"], metricas=result.get("metricas"))
 
 
 # Rota para manutenção
 @app.post("/maintenance")
-def manutencao():
-    limpar_cache()
-    limpar_historico()
+def manutencao(repo: ChatRepository = Depends(get_repository)):
+    repo.clear()
+    repo.clear_history()
     return {"message": "Cache e histórico limpos com sucesso"}
+
+
+# Evento de startup
+@app.on_event("startup")
+def app_startup():
+    # Tentar inicializar/validar o modelo Ollama local no startup para falhas antecipadas.
+    try:
+        initialize_model(warmup_message="Aquecimento do modelo para Desafio Criar")
+    except Exception as exc:
+        logger.warning(f"Falha ao inicializar modelo na inicialização: {exc}")

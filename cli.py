@@ -11,11 +11,18 @@ def enviar_mensagem(mensagem: str) -> str:
         response = requests.post(API_URL, json={"mensagem": mensagem})
         if response.status_code == 200:
             data = response.json()
+            # Compatibilidade com diferentes formatos de chave
+            resposta = data.get("Resposta") or data.get("resposta")
+            metricas = data.get("Métricas") or data.get("metricas") or data.get("Metricas")
+
             print("\n🤖 Resposta:")
-            print(data["Resposta"], "\n")
+            print(resposta, "\n")
             print("\n📊 Métricas:")
-            for k, v in data.get("Métricas", {}).items():
-                print(f" - {k}: {v}")
+            if isinstance(metricas, dict):
+                for k, v in metricas.items():
+                    print(f" - {k}: {v}")
+            else:
+                print(" - Nenhuma métrica disponível")
         # Tratar erros da API
         else:
             print(f"Erro {response.status_code}: {response.text}")
